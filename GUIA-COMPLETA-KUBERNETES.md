@@ -1,7 +1,5 @@
 # GUIA COMPLETA DE KUBERNETES - FOR DUMMIES
 
-## Curso Cenfotec - Profesor Carlos Chacon Calvo
-
 ---
 
 # TABLA DE CONTENIDOS
