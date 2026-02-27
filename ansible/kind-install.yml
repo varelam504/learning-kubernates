@@ -1,0 +1,279 @@
+---
+- name: Install KIND Kubernetes Testing Environment
+  hosts: kind_servers
+  become: true
+  vars:
+    kind_version: "v0.20.0"
+    cluster_name: "demo"
+    public_ip: "{{ ansible_facts['default_ipv4']['address'] }}"
+    code_server_password: "password"
+    kind_cluster_config: |
+      apiVersion: kind.x-k8s.io/v1alpha4
+      kind: Cluster
+      name: {{ cluster_name }}
+
+      nodes:
+       - role: control-plane
+         kubeadmConfigPatches:
+         - |
+           kind: ClusterConfiguration
+           apiServer:
+             certSANs:
+             - "{{ public_ip }}"
+             - "localhost"
+             - "127.0.0.1"
+             - "0.0.0.0"
+         - |
+           kind: InitConfiguration
+           nodeRegistration:
+             kubeletExtraArgs:
+               node-labels: "ingress-ready=true"
+         extraPortMappings:
+         - containerPort: 80
+           hostPort: 80
+           protocol: TCP
+         - containerPort: 443
+           hostPort: 443
+           protocol: TCP
+         - containerPort: 30080
+           hostPort: 30080
+           protocol: TCP
+         - containerPort: 6443
+           hostPort: 6443
+           listenAddress: "0.0.0.0"
+           protocol: TCP
+
+       - role: worker
+       - role: worker
+       - role: worker
+
+  tasks:
+    # ──────────────────────────────────────────────
+    # 1. Docker
+    # ──────────────────────────────────────────────
+    - name: Install Docker dependencies
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: true
+      tags: [docker]
+
+    - name: Download Docker install script
+      get_url:
+        url: https://get.docker.com
+        dest: /tmp/get-docker.sh
+        mode: "0755"
+      tags: [docker]
+
+    - name: Run Docker install script
+      command: sh /tmp/get-docker.sh
+      args:
+        creates: /usr/bin/docker
+      tags: [docker]
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+      tags: [docker]
+
+    - name: Ensure Docker service is running
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+      tags: [docker]
+
+    - name: Reset SSH connection to pick up docker group
+      meta: reset_connection
+      tags: [docker]
+
+    # ──────────────────────────────────────────────
+    # 2. KIND
+    # ──────────────────────────────────────────────
+    - name: Download KIND binary
+      get_url:
+        url: "https://kind.sigs.k8s.io/dl/{{ kind_version }}/kind-linux-amd64"
+        dest: /usr/local/bin/kind
+        mode: "0755"
+      tags: [kind]
+
+    - name: Verify KIND installation
+      command: kind version
+      register: kind_ver
+      changed_when: false
+      tags: [kind]
+
+    - name: Show KIND version
+      debug:
+        msg: "{{ kind_ver.stdout }}"
+      tags: [kind]
+
+    # ──────────────────────────────────────────────
+    # 3. kubectl
+    # ──────────────────────────────────────────────
+    - name: Install kubectl via snap
+      snap:
+        name: kubectl
+        classic: true
+        state: present
+      tags: [kubectl]
+
+    # ──────────────────────────────────────────────
+    # 4. KIND cluster
+    # ──────────────────────────────────────────────
+    - name: Write KIND cluster config
+      copy:
+        content: "{{ kind_cluster_config }}"
+        dest: "/home/{{ ansible_user }}/kind-cluster.yaml"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+      tags: [cluster]
+
+    - name: Check if KIND cluster already exists
+      command: kind get clusters
+      register: existing_clusters
+      changed_when: false
+      become: false
+      tags: [cluster]
+
+    - name: Create KIND cluster
+      command: kind create cluster --config /home/{{ ansible_user }}/kind-cluster.yaml
+      when: cluster_name not in existing_clusters.stdout_lines
+      become: false
+      tags: [cluster]
+
+    # ──────────────────────────────────────────────
+    # 5. zsh & completion & aliases
+    # ──────────────────────────────────────────────
+    - name: Install zsh
+      apt:
+        name: zsh
+        state: present
+      tags: [shell, zsh]
+
+    - name: Set zsh as default shell for user
+      user:
+        name: "{{ ansible_user }}"
+        shell: /usr/bin/zsh
+      tags: [shell, zsh]
+
+    - name: Create .zshrc for user
+      copy:
+        content: |
+          # Zsh configuration
+          export HISTFILE=~/.zsh_history
+          export HISTSIZE=10000
+          export SAVEHIST=10000
+          setopt SHARE_HISTORY
+          setopt HIST_IGNORE_DUPS
+          setopt HIST_IGNORE_SPACE
+
+          # Enable completion system
+          autoload -Uz compinit
+          compinit
+
+          # kubectl completion and aliases
+          source <(kubectl completion zsh)
+          alias k=kubectl
+          compdef k=kubectl
+          alias ka="kubectl apply -f"
+          alias kg="kubectl get"
+          [ -f ~/.kubectl_aliases ] && source ~/.kubectl_aliases
+
+          # kind completion
+          source <(kind completion zsh)
+
+          # Prompt configuration
+          autoload -Uz promptinit
+          promptinit
+          PROMPT='%F{green}%n@%m%f:%F{blue}%~%f$ '
+        dest: "/home/{{ ansible_user }}/.zshrc"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+      tags: [shell, zsh, aliases]
+
+    - name: Download kubectl-aliases
+      get_url:
+        url: https://raw.githubusercontent.com/ahmetb/kubectl-aliases/master/.kubectl_aliases
+        dest: "/home/{{ ansible_user }}/.kubectl_aliases"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+      tags: [aliases]
+
+    # ──────────────────────────────────────────────
+    # 6. VS Code Server (code-server)
+    # ──────────────────────────────────────────────
+    - name: Install code-server via official install script
+      shell: curl -fsSL https://code-server.dev/install.sh | sh
+      args:
+        creates: /usr/bin/code-server
+      tags: [code-server]
+
+    - name: Ensure code-server config directory exists
+      file:
+        path: "/home/{{ ansible_user }}/.config/code-server"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: "0755"
+      tags: [code-server]
+
+    - name: Configure code-server for remote access
+      copy:
+        content: |
+          bind-addr: 0.0.0.0:3030
+          auth: none
+          cert: false
+        dest: "/home/{{ ansible_user }}/.config/code-server/config.yaml"
+        owner: "{{ ansible_user }}"
+        mode: "0600"
+      tags: [code-server]
+
+    - name: Disable UFW firewall
+      ufw:
+        state: disabled
+      tags: [code-server, firewall]
+
+    - name: Enable and start code-server service for user
+      systemd:
+        name: "code-server@{{ ansible_user }}"
+        state: restarted
+        enabled: true
+      tags: [code-server]
+
+    - name: Show code-server access info
+      debug:
+        msg: "VS Code Server disponible en http://{{ public_ip }}:3030 (password: {{ code_server_password }})"
+      tags: [code-server]
+
+    # ──────────────────────────────────────────────
+    # 7. Verification
+    # ──────────────────────────────────────────────
+    - name: Verify cluster nodes
+      command: kubectl get nodes
+      register: cluster_nodes
+      changed_when: false
+      become: false
+      tags: [verify]
+
+    - name: Show cluster nodes
+      debug:
+        msg: "{{ cluster_nodes.stdout_lines }}"
+      tags: [verify]
+
+    - name: Verify kube-system pods
+      command: kubectl get pods -n kube-system
+      register: system_pods
+      changed_when: false
+      become: false
+      tags: [verify]
+
+    - name: Show kube-system pods
+      debug:
+        msg: "{{ system_pods.stdout_lines }}"
+      tags: [verify]
