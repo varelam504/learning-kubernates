@@ -1,11 +1,11 @@
-# Plan de Ejecución - KIND en 146.190.60.216
+# Plan de Ejecución - KIND
 
 ## Servidor destino
 
 | Campo   | Valor                |
 |---------|----------------------|
 | IP      | xxx.xxx.xxx.xxx       |
-| Usuario | <user>                 |
+| Usuario | admin                 |
 | OS      | Ubuntu x86_64        |
 | SSH     | Llave via 1Password  |
 
