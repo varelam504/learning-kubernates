@@ -4,8 +4,8 @@
 
 | Campo   | Valor                |
 |---------|----------------------|
-| IP      | 146.190.60.216       |
-| Usuario | toto                 |
+| IP      | xxx.xxx.xxx.xxx       |
+| Usuario | <user>                 |
 | OS      | Ubuntu x86_64        |
 | SSH     | Llave via 1Password  |
 
@@ -52,7 +52,7 @@ Resultado esperado:
 ansible-playbook -i inventory.ini kind-install.yml --check --ask-become-pass
 ```
 
-Te pedirá la contraseña de sudo de `toto`. Esto simula la ejecución sin hacer cambios reales. Revisa que no haya errores.
+Te pedirá la contraseña de sudo de `<user>`. Esto simula la ejecución sin hacer cambios reales. Revisa que no haya errores.
 
 ### 3. Ejecutar el playbook
 
@@ -65,7 +65,7 @@ ansible-playbook -i inventory.ini kind-install.yml --ask-become-pass
 Conéctate al servidor y confirma:
 
 ```bash
-ssh toto@146.190.60.216
+ssh admin@146.190.xx.xxx
 
 # Verificar Docker
 docker ps
