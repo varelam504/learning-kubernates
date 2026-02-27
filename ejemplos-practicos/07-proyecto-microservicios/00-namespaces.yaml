@@ -1,0 +1,25 @@
+# ============================================================================
+# NAMESPACES
+# ============================================================================
+# Creamos dos namespaces:
+#   - public: Para servicios accesibles desde Internet
+#   - private: Para servicios internos
+#
+# APLICAR PRIMERO - Otros recursos dependen de estos namespaces
+# ============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: public
+  labels:
+    proyecto: microservicios
+    ambiente: desarrollo
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: private
+  labels:
+    proyecto: microservicios
+    ambiente: desarrollo

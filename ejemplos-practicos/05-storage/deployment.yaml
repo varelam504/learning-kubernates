@@ -1,0 +1,68 @@
+# ============================================================================
+# DEPLOYMENT CON PERSISTENTVOLUMECLAIM
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-deploy
+  namespace: ejemplo-05
+  labels:
+    app: storage-app
+
+spec:
+  replicas: 1                        # Con RWO, solo 1 Pod puede montar
+
+  selector:
+    matchLabels:
+      app: storage-app               # ◄── IDENTICO a template.labels
+
+  template:
+    metadata:
+      labels:
+        app: storage-app             # ◄── Usado por Service.selector
+
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.21
+          ports:
+            - containerPort: 80
+
+          # ──────────────────────────────────────────────────────────────────
+          # VOLUMEMOUNTS - Donde se monta el volumen en el contenedor
+          # ──────────────────────────────────────────────────────────────────
+          volumeMounts:
+            - name: data-volume      # ◄──┐
+              mountPath: /data       #    │ MISMO NOMBRE que volumes[].name
+                                     #    │ Los datos en /data PERSISTEN
+                                     #    │
+      # ──────────────────────────────────────────────────────────────────────
+      # VOLUMES - Que volumenes usar
+      # ──────────────────────────────────────────────────────────────────────
+      volumes:
+        - name: data-volume          # ◄──┘
+          persistentVolumeClaim:
+            # ────────────────────────────────────────────────────────────────
+            # Referencia al PVC
+            # DEBE coincidir con PVC.metadata.name
+            # ────────────────────────────────────────────────────────────────
+            claimName: app-pvc       # ◄── PVC.metadata.name
+
+# ============================================================================
+# PROBAR PERSISTENCIA
+# ============================================================================
+#
+# 1. Crear un archivo:
+#    kubectl exec -it <pod-name> -n ejemplo-05 -- sh -c "echo 'Hola' > /data/test.txt"
+#
+# 2. Eliminar el Pod:
+#    kubectl delete pod <pod-name> -n ejemplo-05
+#
+# 3. El Deployment crea un nuevo Pod automaticamente
+#
+# 4. Verificar que el archivo persiste:
+#    kubectl exec -it <nuevo-pod-name> -n ejemplo-05 -- cat /data/test.txt
+#    # Debe mostrar "Hola"
+#
+# ============================================================================

@@ -1,0 +1,48 @@
+# ============================================================================
+# INGRESS
+# ============================================================================
+# El Ingress expone el Service a Internet usando un dominio.
+# Requiere un Ingress Controller instalado (nginx-ingress, traefik, etc.)
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp-ingress
+  namespace: ejemplo-03
+
+spec:
+  # ──────────────────────────────────────────────────────────────────────────
+  # REGLAS DE ENRUTAMIENTO
+  # Define como el trafico llega a los Services
+  # ──────────────────────────────────────────────────────────────────────────
+  rules:
+    - host: webapp.local.test        # Dominio (agregar a /etc/hosts)
+      http:
+        paths:
+          - path: /                  # Ruta (/ = todo el trafico)
+            pathType: Prefix         # Prefix = cualquier ruta que empiece con /
+            backend:
+              service:
+                # ────────────────────────────────────────────────────────────
+                # REFERENCIA AL SERVICE
+                # Estos valores DEBEN coincidir con:
+                #   - name: Service.metadata.name
+                #   - port.number: Service.spec.ports[].port
+                # ────────────────────────────────────────────────────────────
+                name: webapp-svc     # ◄── Service.metadata.name
+                port:
+                  number: 80         # ◄── Service.spec.ports[].port
+
+# ============================================================================
+# PARA PROBAR LOCALMENTE
+# ============================================================================
+# 1. Instalar Ingress Controller (KIND):
+#    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+#
+# 2. Agregar a /etc/hosts:
+#    127.0.0.1  webapp.local.test
+#
+# 3. Acceder en navegador:
+#    http://webapp.local.test
+# ============================================================================

@@ -1,0 +1,59 @@
+# ============================================================================
+# CONFIGMAPS
+# ============================================================================
+# ConfigMaps para configuracion NO sensible.
+# APLICAR ANTES de los Deployments que los usan.
+# ============================================================================
+
+# ────────────────────────────────────────────────────────────────────────────
+# CONFIGMAP: webpage-config
+# ────────────────────────────────────────────────────────────────────────────
+# Usado por: Deployment webpage-deploy
+# Contiene: Archivo config.js para el frontend
+# ────────────────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webpage-config               # ◄── webpage-deploy usa este nombre
+  namespace: public
+  labels:
+    app: webpage
+data:
+  # Este archivo se monta en /usr/share/nginx/html/config.js
+  config.js: |
+    window.CONFIG = {
+      API_URL: 'http://api.usuario.kubelabs.dev',
+      WEBSOCKET_URL: 'ws://websocket.usuario.kubelabs.dev',
+      APP_NAME: 'Microservicios Demo',
+      VERSION: '1.0.0'
+    };
+
+---
+# ────────────────────────────────────────────────────────────────────────────
+# CONFIGMAP: publicapi-config
+# ────────────────────────────────────────────────────────────────────────────
+# Usado por: Deployment publicapi-deploy
+# Contiene: URL del Private API (comunicacion entre namespaces)
+# ────────────────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: publicapi-config             # ◄── publicapi-deploy usa este nombre
+  namespace: public
+  labels:
+    app: public-api
+data:
+  # ──────────────────────────────────────────────────────────────────────────
+  # URL DEL PRIVATE API
+  # ──────────────────────────────────────────────────────────────────────────
+  # Formato: http://<service-name>.<namespace>.svc.cluster.local:<port>/<path>
+  #
+  # Donde:
+  #   - private-api: nombre del Service (metadata.name) del private API
+  #   - private: nombre del Namespace donde esta el private API
+  #   - 3002: puerto del Service (spec.ports[].port)
+  #   - /private: path del endpoint
+  # ──────────────────────────────────────────────────────────────────────────
+  PRIVATE_API: "http://private-api.private.svc.cluster.local:3002/private"

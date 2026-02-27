@@ -1,0 +1,91 @@
+# ============================================================================
+# INGRESS
+# ============================================================================
+# Expone los servicios a Internet usando dominios.
+#
+# Antes de aplicar, instalar Ingress Controller (KIND):
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+#
+# Para probar localmente, agregar a /etc/hosts:
+#   127.0.0.1  usuario.kubelabs.dev
+#   127.0.0.1  websocket.usuario.kubelabs.dev
+#   127.0.0.1  api.usuario.kubelabs.dev
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices-ingress
+  namespace: public
+  labels:
+    proyecto: microservicios
+
+spec:
+  rules:
+    # ────────────────────────────────────────────────────────────────────────
+    # REGLA 1: WEBPAGE (Frontend)
+    # ────────────────────────────────────────────────────────────────────────
+    # Dominio: usuario.kubelabs.dev
+    # Ruta: /
+    # Backend: webpage-svc:80
+    # ────────────────────────────────────────────────────────────────────────
+    - host: usuario.kubelabs.dev     # ◄── Cambiar por tu subdominio
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                # ────────────────────────────────────────────────────────────
+                # REFERENCIA AL SERVICE
+                # name: Service.metadata.name
+                # port.number: Service.spec.ports[].port
+                # ────────────────────────────────────────────────────────────
+                name: webpage-svc    # ◄── Service.metadata.name (03-webpage.yaml)
+                port:
+                  number: 80         # ◄── Service.spec.ports[].port
+
+    # ────────────────────────────────────────────────────────────────────────
+    # REGLA 2: WEBSOCKET
+    # ────────────────────────────────────────────────────────────────────────
+    # Dominio: websocket.usuario.kubelabs.dev
+    # Ruta: /graphql
+    # Backend: websocket-svc:80
+    # ────────────────────────────────────────────────────────────────────────
+    - host: websocket.usuario.kubelabs.dev  # ◄── Cambiar por tu subdominio
+      http:
+        paths:
+          - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: websocket-svc  # ◄── Service.metadata.name (04-websocket.yaml)
+                port:
+                  number: 80         # ◄── Service.spec.ports[].port
+
+    # ────────────────────────────────────────────────────────────────────────
+    # REGLA 3: PUBLIC API
+    # ────────────────────────────────────────────────────────────────────────
+    # Dominio: api.usuario.kubelabs.dev
+    # Ruta: /graphql
+    # Backend: publicapi-svc:80
+    # ────────────────────────────────────────────────────────────────────────
+    - host: api.usuario.kubelabs.dev  # ◄── Cambiar por tu subdominio
+      http:
+        paths:
+          - path: /graphql
+            pathType: Prefix
+            backend:
+              service:
+                name: publicapi-svc  # ◄── Service.metadata.name (05-public-api.yaml)
+                port:
+                  number: 80         # ◄── Service.spec.ports[].port
+
+# ============================================================================
+# NOTA: El private-api NO tiene Ingress
+# ============================================================================
+# El private-api solo es accesible desde dentro del cluster usando DNS interno:
+#   http://private-api.private.svc.cluster.local:3002
+#
+# Esto se configura en el ConfigMap publicapi-config (01-configmaps.yaml)
+# ============================================================================

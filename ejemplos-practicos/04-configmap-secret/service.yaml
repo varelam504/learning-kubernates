@@ -1,0 +1,25 @@
+# ============================================================================
+# SERVICE
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-svc
+  namespace: ejemplo-04
+
+spec:
+  type: NodePort
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe coincidir con Deployment > template > metadata > labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    app: myapp                       # ◄── Coincide con Pod.labels
+    tier: backend                    # ◄── Coincide con Pod.labels
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30080

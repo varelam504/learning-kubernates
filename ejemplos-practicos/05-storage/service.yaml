@@ -1,0 +1,20 @@
+# ============================================================================
+# SERVICE
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage-svc
+  namespace: ejemplo-05
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app: storage-app                 # ◄── Coincide con Pod.labels
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

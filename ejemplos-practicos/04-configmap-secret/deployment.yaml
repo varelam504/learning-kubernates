@@ -1,0 +1,93 @@
+# ============================================================================
+# DEPLOYMENT CON CONFIGMAP Y SECRET
+# ============================================================================
+# Este Deployment usa:
+#   - ConfigMap como variables de entorno
+#   - Secret como variables de entorno
+#   - ConfigMap montado como archivos (volumen)
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deploy
+  namespace: ejemplo-04
+  labels:
+    app: myapp
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: myapp                     # ◄── IDENTICO a template.labels
+      tier: backend                  # ◄── IDENTICO a template.labels
+
+  template:
+    metadata:
+      labels:
+        app: myapp                   # ◄── Usado por Service.selector
+        tier: backend                # ◄── Usado por Service.selector
+
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.21
+          ports:
+            - containerPort: 80
+
+          # ──────────────────────────────────────────────────────────────────
+          # VARIABLES DE ENTORNO DESDE CONFIGMAP Y SECRET
+          # ──────────────────────────────────────────────────────────────────
+          # envFrom: Carga TODAS las keys como variables de entorno
+          # ──────────────────────────────────────────────────────────────────
+          envFrom:
+            - configMapRef:
+                # ────────────────────────────────────────────────────────────
+                # Referencia al ConfigMap
+                # DEBE coincidir con ConfigMap.metadata.name
+                # ────────────────────────────────────────────────────────────
+                name: app-config     # ◄── ConfigMap.metadata.name
+
+            - secretRef:
+                # ────────────────────────────────────────────────────────────
+                # Referencia al Secret
+                # DEBE coincidir con Secret.metadata.name
+                # ────────────────────────────────────────────────────────────
+                name: app-secret     # ◄── Secret.metadata.name
+
+          # ──────────────────────────────────────────────────────────────────
+          # MONTAR CONFIGMAP COMO ARCHIVOS
+          # ──────────────────────────────────────────────────────────────────
+          volumeMounts:
+            - name: config-volume    # ◄──┐
+              mountPath: /etc/config #    │ MISMO NOMBRE que volumes[].name
+              readOnly: true         #    │
+                                     #    │
+      volumes:                       #    │
+        - name: config-volume        # ◄──┘
+          configMap:
+            # ────────────────────────────────────────────────────────────────
+            # Referencia al ConfigMap
+            # DEBE coincidir con ConfigMap.metadata.name
+            # ────────────────────────────────────────────────────────────────
+            name: app-config         # ◄── ConfigMap.metadata.name
+
+# ============================================================================
+# RESULTADO DENTRO DEL CONTENEDOR
+# ============================================================================
+#
+# Variables de entorno (de envFrom):
+#   $ echo $APP_COLOR
+#   blue
+#   $ echo $DB_PASSWORD
+#   mi-password-secreto
+#
+# Archivos (de volumeMount):
+#   $ ls /etc/config/
+#   APP_COLOR  APP_MODE  DATABASE_HOST  DATABASE_PORT  LOG_LEVEL
+#
+#   $ cat /etc/config/APP_COLOR
+#   blue
+#
+# ============================================================================

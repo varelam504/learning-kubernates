@@ -1,0 +1,57 @@
+# ============================================================================
+# DEPLOYMENT
+# ============================================================================
+# El Deployment gestiona Pods usando matchLabels.
+# REGLA CRITICA: selector.matchLabels DEBE ser IDENTICO a template.labels
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deploy
+  namespace: ejemplo-02              # Debe coincidir con el namespace creado
+  labels:
+    app: web-app                     # Labels del Deployment (para organizacion)
+
+spec:
+  replicas: 3                        # Cantidad de Pods a mantener
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Como el Deployment ENCUENTRA sus Pods
+  # ──────────────────────────────────────────────────────────────────────────
+  # REGLA: Estos labels DEBEN ser IDENTICOS a template.metadata.labels
+  # Si no coinciden, error: `selector` does not match template `labels`
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    matchLabels:
+      app: web-app                   # ◄── DEBE coincidir con template.labels
+      tier: frontend                 # ◄── DEBE coincidir con template.labels
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # TEMPLATE - Plantilla para crear los Pods
+  # ──────────────────────────────────────────────────────────────────────────
+  template:
+    metadata:
+      labels:
+        # ────────────────────────────────────────────────────────────────────
+        # LABELS DEL POD - CRITICO!
+        # ────────────────────────────────────────────────────────────────────
+        # Estos labels son usados por:
+        #   1. El Deployment (selector.matchLabels) para gestionar estos Pods
+        #   2. El Service (selector) para encontrar estos Pods
+        # ────────────────────────────────────────────────────────────────────
+        app: web-app                 # ◄── Usado por Deployment y Service
+        tier: frontend               # ◄── Usado por Deployment y Service
+
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.21
+          ports:
+            # ────────────────────────────────────────────────────────────────
+            # PUERTO DEL CONTENEDOR
+            # ────────────────────────────────────────────────────────────────
+            # Este es el puerto donde escucha la aplicacion.
+            # El Service usara este valor en su "targetPort".
+            # ────────────────────────────────────────────────────────────────
+            - containerPort: 80      # ◄── El Service apuntara aqui con targetPort

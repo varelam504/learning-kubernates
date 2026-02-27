@@ -1,0 +1,43 @@
+# ============================================================================
+# DEPLOYMENT
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-deploy
+  namespace: ejemplo-03
+  labels:
+    app: webapp
+
+spec:
+  replicas: 3
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # matchLabels DEBE ser IDENTICO a template.metadata.labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    matchLabels:
+      app: webapp                    # ◄── IDENTICO a template.labels
+      tier: frontend                 # ◄── IDENTICO a template.labels
+
+  template:
+    metadata:
+      labels:
+        # ────────────────────────────────────────────────────────────────────
+        # Estos labels son usados por:
+        #   1. Deployment (matchLabels) - para gestionar estos Pods
+        #   2. Service (selector) - para encontrar estos Pods
+        # ────────────────────────────────────────────────────────────────────
+        app: webapp                  # ◄── Usado por Deployment y Service
+        tier: frontend               # ◄── Usado por Deployment y Service
+
+    spec:
+      containers:
+        - name: webapp
+          image: nginx:1.21
+          ports:
+            # ────────────────────────────────────────────────────────────────
+            # Este puerto es referenciado por Service.targetPort
+            # ────────────────────────────────────────────────────────────────
+            - containerPort: 80      # ◄── Service.targetPort apunta aqui

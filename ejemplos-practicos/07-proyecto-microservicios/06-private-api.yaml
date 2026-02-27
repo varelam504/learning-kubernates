@@ -1,0 +1,124 @@
+# ============================================================================
+# PRIVATE API
+# ============================================================================
+# Deployment + Service para el API privado
+#
+# Imagen: cachac/kubelabs_privateapi:1.0.2
+# Puerto: 3002
+# Replicas: 1
+# Namespace: private (diferente a los demas!)
+# NO tiene Ingress (solo acceso interno)
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: privateapi-deploy
+  namespace: private                 # ◄── NAMESPACE DIFERENTE!
+  labels:
+    app: private-api
+
+spec:
+  replicas: 1
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe ser IDENTICO a template.metadata.labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    matchLabels:
+      app: private-api               # ◄── IDENTICO a template.labels
+      tier: backend                  # ◄── IDENTICO a template.labels
+
+  template:
+    metadata:
+      labels:
+        app: private-api             # ◄── Usado por Service.selector
+        tier: backend                # ◄── Usado por Service.selector
+
+    spec:
+      containers:
+        - name: private-api
+          image: cachac/kubelabs_privateapi:1.0.2
+          ports:
+            - containerPort: 3002    # ◄── Service.targetPort apunta aqui
+
+          # ──────────────────────────────────────────────────────────────────
+          # RESOURCES
+          # ──────────────────────────────────────────────────────────────────
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 200m
+              memory: 200Mi
+
+          # ──────────────────────────────────────────────────────────────────
+          # PROBES
+          # ──────────────────────────────────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 3082             # Puerto de health check
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 3082
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+
+---
+# ============================================================================
+# SERVICE: private-api
+# ============================================================================
+# Este service es accedido por public-api usando DNS interno:
+#   http://private-api.private.svc.cluster.local:3002
+#
+# El nombre del service (private-api) y namespace (private) forman la URL.
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  # ──────────────────────────────────────────────────────────────────────────
+  # NOMBRE DEL SERVICE
+  # ──────────────────────────────────────────────────────────────────────────
+  # Este nombre es usado en el ConfigMap publicapi-config:
+  #   PRIVATE_API: http://private-api.private.svc.cluster.local:3002/private
+  #                       ^^^^^^^^^^^
+  # ──────────────────────────────────────────────────────────────────────────
+  name: private-api                  # ◄── Usado en ConfigMap.PRIVATE_API
+  namespace: private                 # ◄── Tambien parte de la URL DNS
+  labels:
+    app: private-api
+
+spec:
+  type: ClusterIP                    # Solo acceso interno (no Ingress)
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe coincidir con Deployment > template > metadata > labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    app: private-api                 # ◄── Coincide con Pod.labels
+    tier: backend                    # ◄── Coincide con Pod.labels
+
+  ports:
+    - name: http
+      # ────────────────────────────────────────────────────────────────────
+      # PUERTO DEL SERVICE
+      # Usado en ConfigMap.PRIVATE_API: ...cluster.local:3002/private
+      #                                                  ^^^^
+      # ────────────────────────────────────────────────────────────────────
+      port: 3002                     # ◄── Usado en ConfigMap.PRIVATE_API
+      targetPort: 3002               # ◄── Deployment.containerPort

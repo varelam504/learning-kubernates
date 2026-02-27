@@ -1,0 +1,30 @@
+# ============================================================================
+# POD BASICO
+# ============================================================================
+# Un Pod es la unidad minima en Kubernetes.
+# Los LABELS son fundamentales para que otros recursos lo encuentren.
+# ============================================================================
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  # ────────────────────────────────────────────────────────────────────────
+  # LABELS: Pares clave-valor para identificar este Pod
+  # ────────────────────────────────────────────────────────────────────────
+  # Estos labels seran usados por:
+  #   - Services (para encontrar el Pod con selector)
+  #   - ReplicaSets/Deployments (para gestionar el Pod con matchLabels)
+  #   - Comandos kubectl (para filtrar con -l app=nginx)
+  # ────────────────────────────────────────────────────────────────────────
+  labels:
+    app: nginx              # Nombre de la aplicacion
+    env: desarrollo         # Ambiente: desarrollo, staging, produccion
+    version: "1.0"          # Version de la app
+spec:
+  containers:
+    - name: nginx                    # Nombre del contenedor (obligatorio)
+      image: nginx:1.21              # Imagen de Docker
+      ports:
+        - containerPort: 80          # Puerto que expone el contenedor
+                                     # (es informativo, pero recomendado)

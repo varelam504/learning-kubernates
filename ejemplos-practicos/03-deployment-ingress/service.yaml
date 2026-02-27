@@ -1,0 +1,40 @@
+# ============================================================================
+# SERVICE
+# ============================================================================
+# Con Ingress, usamos ClusterIP (no necesitamos NodePort)
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  # ──────────────────────────────────────────────────────────────────────────
+  # NOMBRE DEL SERVICE
+  # Este nombre es usado por el Ingress en: backend.service.name
+  # ──────────────────────────────────────────────────────────────────────────
+  name: webapp-svc                   # ◄── Ingress referencia este nombre
+  namespace: ejemplo-03
+
+spec:
+  # ──────────────────────────────────────────────────────────────────────────
+  # TIPO ClusterIP
+  # Con Ingress no necesitamos NodePort porque el Ingress Controller
+  # se encarga de exponer el trafico
+  # ──────────────────────────────────────────────────────────────────────────
+  type: ClusterIP
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Encuentra Pods con estos labels
+  # Debe coincidir con Deployment > template > metadata > labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    app: webapp                      # ◄── Coincide con Pod.labels
+    tier: frontend                   # ◄── Coincide con Pod.labels
+
+  ports:
+    - name: http
+      # ────────────────────────────────────────────────────────────────────
+      # port: Puerto del Service (el Ingress usa este en backend.port.number)
+      # targetPort: Puerto del Container (containerPort del Deployment)
+      # ────────────────────────────────────────────────────────────────────
+      port: 80                       # ◄── Ingress.backend.service.port.number
+      targetPort: 80                 # ◄── Deployment.containerPort

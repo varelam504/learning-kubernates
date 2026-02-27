@@ -1,0 +1,114 @@
+# ============================================================================
+# WEBSOCKET
+# ============================================================================
+# Deployment + Service para el websocket
+#
+# Imagen: cachac/kubelabs_websocket:1.0.6
+# Puerto: 3001
+# Replicas: 1
+# Secret: websocket-secret (como variable de entorno)
+# Estrategia: Recreate
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket-deploy
+  namespace: public
+  labels:
+    app: websocket
+
+spec:
+  replicas: 1
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ESTRATEGIA: Recreate (elimina todos, luego crea nuevos)
+  # ──────────────────────────────────────────────────────────────────────────
+  strategy:
+    type: Recreate                   # Mata todos antes de crear nuevos
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe ser IDENTICO a template.metadata.labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    matchLabels:
+      app: websocket                 # ◄── IDENTICO a template.labels
+      tier: backend                  # ◄── IDENTICO a template.labels
+
+  template:
+    metadata:
+      labels:
+        app: websocket               # ◄── Usado por Service.selector
+        tier: backend                # ◄── Usado por Service.selector
+
+    spec:
+      containers:
+        - name: websocket
+          image: cachac/kubelabs_websocket:1.0.6
+          ports:
+            - containerPort: 3001    # ◄── Service.targetPort apunta aqui
+
+          # ──────────────────────────────────────────────────────────────────
+          # VARIABLES DE ENTORNO DESDE SECRET
+          # ──────────────────────────────────────────────────────────────────
+          envFrom:
+            - secretRef:
+                name: websocket-secret # ◄── Secret.metadata.name
+
+          # ──────────────────────────────────────────────────────────────────
+          # RESOURCES
+          # ──────────────────────────────────────────────────────────────────
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 250m
+              memory: 200Mi
+
+          # ──────────────────────────────────────────────────────────────────
+          # PROBES
+          # ──────────────────────────────────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 3081             # Puerto de health check
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 3081
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+
+---
+# ============================================================================
+# SERVICE: websocket-svc
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: websocket-svc                # ◄── Ingress usa este nombre
+  namespace: public
+  labels:
+    app: websocket
+
+spec:
+  type: ClusterIP
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe coincidir con Deployment > template > metadata > labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    app: websocket                   # ◄── Coincide con Pod.labels
+    tier: backend                    # ◄── Coincide con Pod.labels
+
+  ports:
+    - name: http
+      port: 80                       # ◄── Ingress usa este puerto
+      targetPort: 3001               # ◄── Deployment.containerPort

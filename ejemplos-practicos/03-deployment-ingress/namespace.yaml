@@ -1,0 +1,10 @@
+# ============================================================================
+# NAMESPACE
+# ============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ejemplo-03
+  labels:
+    ejemplo: deployment-ingress

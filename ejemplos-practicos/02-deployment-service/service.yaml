@@ -1,0 +1,56 @@
+# ============================================================================
+# SERVICE
+# ============================================================================
+# El Service expone Pods y los encuentra usando SELECTOR.
+# REGLA CRITICA: selector DEBE coincidir con Pod.labels (template.labels)
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc
+  namespace: ejemplo-02              # Mismo namespace que el Deployment
+
+spec:
+  type: NodePort                     # Tipo: ClusterIP, NodePort, LoadBalancer
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Como el Service ENCUENTRA los Pods
+  # ──────────────────────────────────────────────────────────────────────────
+  # REGLA: Estos labels DEBEN coincidir con los labels de los Pods
+  #        (definidos en Deployment > template > metadata > labels)
+  #
+  # Si no coinciden, el Service no tendra endpoints!
+  # Verificar con: kubectl get endpoints web-svc -n ejemplo-02
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    app: web-app                     # ◄── Debe coincidir con Pod.labels
+    tier: frontend                   # ◄── Debe coincidir con Pod.labels
+
+  ports:
+    # ────────────────────────────────────────────────────────────────────────
+    # PUERTOS - La cadena de conexion
+    # ────────────────────────────────────────────────────────────────────────
+    #
+    #   EXTERNO ──► nodePort:30080 ──► port:80 ──► targetPort:80 ──► Container
+    #
+    # ────────────────────────────────────────────────────────────────────────
+    - name: http
+      port: 80                       # Puerto del Service (como otros Pods lo llaman)
+      targetPort: 80                 # Puerto del Container (containerPort en Deployment)
+      nodePort: 30080                # Puerto en cada Nodo (acceso externo)
+                                     # Solo para tipo NodePort, rango: 30000-32767
+
+# ============================================================================
+# VERIFICACION
+# ============================================================================
+# Despues de aplicar, verificar que el Service encontro los Pods:
+#
+#   kubectl get endpoints web-svc -n ejemplo-02
+#
+# Debe mostrar las IPs de los Pods, ejemplo:
+#   NAME      ENDPOINTS                                   AGE
+#   web-svc   10.244.1.5:80,10.244.2.3:80,10.244.3.7:80   5s
+#
+# Si muestra <none>, el selector NO coincide con los labels de los Pods.
+# ============================================================================

@@ -1,0 +1,111 @@
+# ============================================================================
+# WEBPAGE (FRONTEND)
+# ============================================================================
+# Deployment + Service para el frontend
+#
+# Imagen: cachac/kubelabs_webapp:1.1.7
+# Puerto: 8080
+# Replicas: 2
+# ConfigMap: webpage-config (montado como archivo)
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webpage-deploy
+  namespace: public
+  labels:
+    app: webpage
+
+spec:
+  replicas: 2
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ESTRATEGIA: Rolling Update con max 50% unavailable
+  # ──────────────────────────────────────────────────────────────────────────
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 50%            # Puede perder hasta 50% durante update
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe ser IDENTICO a template.metadata.labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    matchLabels:
+      app: webpage                   # ◄── IDENTICO a template.labels
+      tier: frontend                 # ◄── IDENTICO a template.labels
+
+  template:
+    metadata:
+      labels:
+        # ────────────────────────────────────────────────────────────────────
+        # LABELS DEL POD
+        # Usados por: Deployment (matchLabels), Service (selector)
+        # ────────────────────────────────────────────────────────────────────
+        app: webpage                 # ◄── Usado por Service.selector
+        tier: frontend               # ◄── Usado por Service.selector
+
+    spec:
+      containers:
+        - name: webpage
+          image: cachac/kubelabs_webapp:1.1.7
+          ports:
+            - containerPort: 8080    # ◄── Service.targetPort apunta aqui
+
+          # ──────────────────────────────────────────────────────────────────
+          # RESOURCES
+          # ──────────────────────────────────────────────────────────────────
+          resources:
+            requests:
+              cpu: 10m
+              memory: 50Mi
+            limits:
+              cpu: 100m
+              memory: 100Mi
+
+          # ──────────────────────────────────────────────────────────────────
+          # VOLUMEMOUNTS - Montar ConfigMap como archivo
+          # ──────────────────────────────────────────────────────────────────
+          volumeMounts:
+            - name: config-volume    # ◄──┐ MISMO NOMBRE que volumes[].name
+              mountPath: /usr/share/nginx/html/config.js
+              subPath: config.js     #    │ Solo monta el archivo, no reemplaza
+              readOnly: true         #    │ todo el directorio
+
+      # ──────────────────────────────────────────────────────────────────────
+      # VOLUMES - Definir el volumen del ConfigMap
+      # ──────────────────────────────────────────────────────────────────────
+      volumes:
+        - name: config-volume        # ◄──┘
+          configMap:
+            name: webpage-config     # ◄── ConfigMap.metadata.name
+
+---
+# ============================================================================
+# SERVICE: webpage-svc
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webpage-svc                  # ◄── Ingress usa este nombre
+  namespace: public
+  labels:
+    app: webpage
+
+spec:
+  type: ClusterIP                    # Con Ingress, ClusterIP es suficiente
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe coincidir con Deployment > template > metadata > labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    app: webpage                     # ◄── Coincide con Pod.labels
+    tier: frontend                   # ◄── Coincide con Pod.labels
+
+  ports:
+    - name: http
+      port: 80                       # ◄── Ingress usa este puerto
+      targetPort: 8080               # ◄── Deployment.containerPort

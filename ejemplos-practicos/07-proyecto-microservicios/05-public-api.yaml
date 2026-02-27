@@ -1,0 +1,115 @@
+# ============================================================================
+# PUBLIC API
+# ============================================================================
+# Deployment + Service para el API publico
+#
+# Imagen: cachac/kubelabs_public_api:1.0.0
+# Puerto: 3000
+# Replicas: 2
+# ConfigMap: publicapi-config (con URL del Private API)
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: publicapi-deploy
+  namespace: public
+  labels:
+    app: public-api
+
+spec:
+  replicas: 2
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe ser IDENTICO a template.metadata.labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    matchLabels:
+      app: public-api                # ◄── IDENTICO a template.labels
+      tier: backend                  # ◄── IDENTICO a template.labels
+
+  template:
+    metadata:
+      labels:
+        app: public-api              # ◄── Usado por Service.selector
+        tier: backend                # ◄── Usado por Service.selector
+
+    spec:
+      containers:
+        - name: public-api
+          image: cachac/kubelabs_public_api:1.0.0
+          ports:
+            - containerPort: 3000    # ◄── Service.targetPort apunta aqui
+
+          # ──────────────────────────────────────────────────────────────────
+          # VARIABLES DE ENTORNO DESDE CONFIGMAP
+          # ──────────────────────────────────────────────────────────────────
+          # Incluye PRIVATE_API que apunta al servicio en namespace private
+          # ──────────────────────────────────────────────────────────────────
+          envFrom:
+            - configMapRef:
+                name: publicapi-config # ◄── ConfigMap.metadata.name
+
+          # ──────────────────────────────────────────────────────────────────
+          # RESOURCES
+          # ──────────────────────────────────────────────────────────────────
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 200m
+              memory: 200Mi
+
+          # ──────────────────────────────────────────────────────────────────
+          # PROBES
+          # ──────────────────────────────────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 3080             # Puerto de health check
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 3080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+
+---
+# ============================================================================
+# SERVICE: publicapi-svc
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: publicapi-svc                # ◄── Ingress usa este nombre
+  namespace: public
+  labels:
+    app: public-api
+
+spec:
+  type: ClusterIP
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # SELECTOR - Debe coincidir con Deployment > template > metadata > labels
+  # ──────────────────────────────────────────────────────────────────────────
+  selector:
+    app: public-api                  # ◄── Coincide con Pod.labels
+    tier: backend                    # ◄── Coincide con Pod.labels
+
+  ports:
+    - name: http
+      port: 80                       # ◄── Ingress usa este puerto
+      targetPort: 3000               # ◄── Deployment.containerPort

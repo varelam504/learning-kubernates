@@ -1,0 +1,21 @@
+# ============================================================================
+# SERVICE
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: probes-svc
+  namespace: ejemplo-06
+
+spec:
+  type: NodePort
+
+  selector:
+    app: probes-app                  # ◄── Coincide con Pod.labels
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30080

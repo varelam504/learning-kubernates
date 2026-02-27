@@ -1,0 +1,13 @@
+# ============================================================================
+# NAMESPACE
+# ============================================================================
+# El Namespace es un "contenedor logico" para organizar recursos.
+# Todos los recursos de este ejemplo estaran en este namespace.
+# ============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ejemplo-02
+  labels:
+    ejemplo: deployment-service

@@ -1,0 +1,57 @@
+# ============================================================================
+# PERSISTENTVOLUMECLAIM (PVC)
+# ============================================================================
+# El PVC solicita almacenamiento. Con StorageClass, el PV se crea automatico.
+# El Deployment referencia este PVC por nombre.
+# ============================================================================
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  # ──────────────────────────────────────────────────────────────────────────
+  # NOMBRE DEL PVC
+  # El Deployment usa este nombre en: volumes.persistentVolumeClaim.claimName
+  # ──────────────────────────────────────────────────────────────────────────
+  name: app-pvc                      # ◄── Deployment referencia este nombre
+  namespace: ejemplo-05
+
+spec:
+  # ──────────────────────────────────────────────────────────────────────────
+  # STORAGECLASS
+  # ──────────────────────────────────────────────────────────────────────────
+  # "standard" es el StorageClass default en KIND
+  # Ver StorageClasses disponibles: kubectl get sc
+  # ──────────────────────────────────────────────────────────────────────────
+  storageClassName: standard
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ACCESS MODES
+  # ──────────────────────────────────────────────────────────────────────────
+  # ReadWriteOnce (RWO): Un solo nodo puede montar el volumen
+  # ReadOnlyMany (ROX): Multiples nodos pueden leer
+  # ReadWriteMany (RWX): Multiples nodos pueden leer/escribir
+  # ──────────────────────────────────────────────────────────────────────────
+  accessModes:
+    - ReadWriteOnce
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # RECURSOS SOLICITADOS
+  # ──────────────────────────────────────────────────────────────────────────
+  resources:
+    requests:
+      storage: 100Mi                 # Espacio solicitado
+
+# ============================================================================
+# VERIFICACION
+# ============================================================================
+# Despues de aplicar:
+#
+#   kubectl get pvc -n ejemplo-05
+#
+# Debe mostrar STATUS: Bound
+#
+#   NAME      STATUS   VOLUME                                     CAPACITY
+#   app-pvc   Bound    pvc-12345678-abcd-...                     100Mi
+#
+# El PV se crea automaticamente gracias al StorageClass.
+# ============================================================================

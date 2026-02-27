@@ -1,0 +1,40 @@
+# ============================================================================
+# CONFIGMAP
+# ============================================================================
+# Para configuracion NO sensible.
+# El Deployment referencia este ConfigMap por nombre.
+# ============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # ──────────────────────────────────────────────────────────────────────────
+  # NOMBRE DEL CONFIGMAP
+  # El Deployment usa este nombre en:
+  #   - envFrom.configMapRef.name
+  #   - volumes.configMap.name
+  # ──────────────────────────────────────────────────────────────────────────
+  name: app-config                   # ◄── Deployment referencia este nombre
+  namespace: ejemplo-04
+
+data:
+  # ──────────────────────────────────────────────────────────────────────────
+  # DATOS DEL CONFIGMAP
+  # Cada key se convierte en:
+  #   - Variable de entorno (si se usa envFrom)
+  #   - Archivo (si se monta como volumen)
+  # ──────────────────────────────────────────────────────────────────────────
+  APP_COLOR: "blue"
+  APP_MODE: "production"
+  DATABASE_HOST: "db.example.com"
+  DATABASE_PORT: "5432"
+  LOG_LEVEL: "info"
+
+# ============================================================================
+# ALTERNATIVA: Crear desde CLI
+# ============================================================================
+# kubectl create configmap app-config \
+#   --from-literal=APP_COLOR=blue \
+#   --from-literal=APP_MODE=production \
+#   -n ejemplo-04
+# ============================================================================

@@ -1,0 +1,112 @@
+# ============================================================================
+# DEPLOYMENT CON PROBES Y RESOURCES
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: probes-deploy
+  namespace: ejemplo-06
+  labels:
+    app: probes-app
+
+spec:
+  replicas: 2
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ESTRATEGIA DE ACTUALIZACION
+  # ──────────────────────────────────────────────────────────────────────────
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1                    # Maximo 1 Pod extra durante update
+      maxUnavailable: 0              # Siempre mantener todos disponibles
+
+  selector:
+    matchLabels:
+      app: probes-app                # ◄── IDENTICO a template.labels
+
+  template:
+    metadata:
+      labels:
+        app: probes-app              # ◄── Usado por Service.selector
+
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.21
+          ports:
+            - containerPort: 80
+
+          # ──────────────────────────────────────────────────────────────────
+          # RESOURCES - Requests y Limits
+          # ──────────────────────────────────────────────────────────────────
+          resources:
+            # ────────────────────────────────────────────────────────────────
+            # REQUESTS: Recursos GARANTIZADOS
+            # El scheduler usa estos valores para decidir donde poner el Pod
+            # ────────────────────────────────────────────────────────────────
+            requests:
+              cpu: 100m              # 100 milicores = 0.1 CPU
+              memory: 64Mi           # 64 Mebibytes
+
+            # ────────────────────────────────────────────────────────────────
+            # LIMITS: Recursos MAXIMOS
+            # Si excede CPU: throttle (mas lento)
+            # Si excede memoria: OOMKilled (se mata el contenedor)
+            # ────────────────────────────────────────────────────────────────
+            limits:
+              cpu: 250m              # 250 milicores = 0.25 CPU
+              memory: 128Mi          # 128 Mebibytes
+
+          # ──────────────────────────────────────────────────────────────────
+          # LIVENESS PROBE - "Sigues vivo?"
+          # ──────────────────────────────────────────────────────────────────
+          # Si falla: Kubernetes REINICIA el contenedor
+          # Uso: Detectar deadlocks, procesos colgados
+          # ──────────────────────────────────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /                # Ruta a verificar
+              port: 80               # Puerto del contenedor
+            initialDelaySeconds: 10  # Esperar 10s antes del primer check
+            periodSeconds: 5         # Verificar cada 5 segundos
+            timeoutSeconds: 3        # Timeout de 3 segundos
+            failureThreshold: 3      # 3 fallos = reiniciar
+
+          # ──────────────────────────────────────────────────────────────────
+          # READINESS PROBE - "Estas listo para recibir trafico?"
+          # ──────────────────────────────────────────────────────────────────
+          # Si falla: Kubernetes QUITA el Pod del Service (no recibe trafico)
+          #           Pero NO lo reinicia
+          # Uso: Startup lento, mantenimiento, dependencias no disponibles
+          # ──────────────────────────────────────────────────────────────────
+          readinessProbe:
+            httpGet:
+              path: /                # Ruta a verificar
+              port: 80               # Puerto del contenedor
+            initialDelaySeconds: 5   # Esperar 5s antes del primer check
+            periodSeconds: 5         # Verificar cada 5 segundos
+            timeoutSeconds: 3        # Timeout de 3 segundos
+            failureThreshold: 3      # 3 fallos = quitar del Service
+
+# ============================================================================
+# TIPOS DE PROBES
+# ============================================================================
+#
+# 1. HTTP GET (usado arriba)
+#    httpGet:
+#      path: /healthz
+#      port: 8080
+#
+# 2. EXEC (ejecutar comando)
+#    exec:
+#      command:
+#        - cat
+#        - /tmp/healthy
+#
+# 3. TCP SOCKET (verificar puerto)
+#    tcpSocket:
+#      port: 8080
+#
+# ============================================================================
